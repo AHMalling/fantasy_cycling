@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:www.procyclingstats.com)",
+      "WebFetch(domain:procyclingstats.readthedocs.io)",
+      "WebFetch(domain:apify.com)",
+      "Skill(update-config)",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python manage.py makemigrations)",
+      "Bash(.venv/Scripts/python manage.py migrate)",
+      "Bash(.venv/Scripts/python manage.py makemigrations api)",
+      "Bash(npm run:*)",
+      "Bash(rm -rf node_modules .next)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(npx tsc:*)",
+      "Bash(.venv/Scripts/python manage.py check)",
+      "Bash(node build.mjs)",
+      "Bash(.venv/Scripts/python.exe -c \"from procyclingstats import Ranking; import inspect; print\\(inspect.getsource\\(Ranking\\)\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -c \"from procyclingstats import Ranking; import inspect; src = inspect.getsource\\(Ranking\\); print\\(src[:3000]\\)\")",
+      "Bash(PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe:*)",
+      "Bash(pip show:*)",
+      "Bash(python -c ':*)",
+      "Bash(docker compose run --rm backend python -c ':*)",
+      "Bash(python -m pip show procyclingstats)",
+      "Bash(.venv/Scripts/python.exe -c ':*)",
+      "Bash(python3 -c \"import procyclingstats; import inspect; print\\(inspect.getfile\\(procyclingstats\\)\\)\")",
+      "Bash(python manage.py migrate)",
+      "Bash(python manage.py shell -c ':*)",
+      "Bash(python:*)",
+      "Bash(npx jest:*)",
+      "Bash(git -C c:/Repos/fantasy_cycling status --short)",
+      "PowerShell(docker compose version *)",
+      "PowerShell(npm *)",
+      "Bash(git *)"
+    ]
+  }
+}
