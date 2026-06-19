@@ -3,6 +3,7 @@ Django settings for core project.
 """
 
 from pathlib import Path
+import dj_database_url
 from decouple import config, Csv
 
 # ---------------------------------------------------------------------------
@@ -37,8 +38,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    "corsheaders.middleware.CorsMiddleware",          # must be before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -68,14 +70,18 @@ WSGI_APPLICATION = "core.wsgi.application"
 ASGI_APPLICATION = "core.asgi.application"
 
 # ---------------------------------------------------------------------------
-# Database
+# Database — uses DATABASE_URL env var in production, SQLite locally
 # ---------------------------------------------------------------------------
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+_db_url = config("DATABASE_URL", default=None)
+if _db_url:
+    DATABASES = {"default": dj_database_url.parse(_db_url, conn_max_age=600)}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
 
 # ---------------------------------------------------------------------------
 # Password validation
@@ -96,9 +102,11 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------------------------------------------------------
-# Static files
+# Static files (WhiteNoise serves them in production)
 # ---------------------------------------------------------------------------
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # ---------------------------------------------------------------------------
 # Default primary key field type
@@ -106,10 +114,12 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ---------------------------------------------------------------------------
-# CORS
+# CORS — allow localhost in dev, Vercel URL(s) in production via env var
 # ---------------------------------------------------------------------------
+_extra_origins = config("CORS_ALLOWED_ORIGINS", default="", cast=Csv())
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    *[o for o in _extra_origins if o],
 ]
 
 # ---------------------------------------------------------------------------
