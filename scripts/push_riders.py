@@ -64,13 +64,20 @@ def collect_riders(limit=None):
     return riders
 
 
-def push_riders(riders, base_url, secret):
+def push_riders(riders, base_url, secret, batch_size=200):
     url = f"{base_url.rstrip('/')}/api/admin/push-riders/?secret={secret}"
-    print(f"\nPushing {len(riders)} riders to {base_url} ...")
-    resp = requests.post(url, json=riders, timeout=60)
-    resp.raise_for_status()
-    result = resp.json()
-    print(f"Done. Created: {result['created']}, Updated: {result['updated']}, Total: {result['total']}")
+    print(f"\nPushing {len(riders)} riders to {base_url} in batches of {batch_size}...")
+    total_created = total_updated = 0
+    for i in range(0, len(riders), batch_size):
+        batch = riders[i:i + batch_size]
+        print(f"  Batch {i // batch_size + 1}: riders {i + 1}–{i + len(batch)}", end=" ... ", flush=True)
+        resp = requests.post(url, json=batch, timeout=60)
+        resp.raise_for_status()
+        result = resp.json()
+        total_created += result["created"]
+        total_updated += result["updated"]
+        print(f"created={result['created']} updated={result['updated']}")
+    print(f"\nDone. Created: {total_created}, Updated: {total_updated}, Total: {total_created + total_updated}")
 
 
 if __name__ == "__main__":
