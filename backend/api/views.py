@@ -456,15 +456,19 @@ _VALID_COMMANDS = {"sync_riders", "sync_results", "sync_photos", "take_snapshot"
 _sync_lock = threading.Lock()
 
 
+def _check_secret(request) -> bool:
+    secret = config("SYNC_SECRET", default="")
+    provided = request.query_params.get("secret") or request.data.get("secret", "")
+    return bool(secret) and provided == secret
+
+
 @api_view(["POST", "GET"])
 @permission_classes([AllowAny])
 def admin_sync(request, command):
     if command not in _VALID_COMMANDS:
         return Response({"detail": "Unknown command."}, status=status.HTTP_404_NOT_FOUND)
 
-    secret = config("SYNC_SECRET", default="")
-    provided = request.query_params.get("secret") or request.data.get("secret", "")
-    if not secret or provided != secret:
+    if not _check_secret(request):
         return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
 
     if not _sync_lock.acquire(blocking=False):
@@ -480,3 +484,48 @@ def admin_sync(request, command):
 
     threading.Thread(target=run, daemon=True).start()
     return Response({"detail": f"{command} started in background."})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def admin_push_riders(request):
+    """
+    Accept a JSON array of rider objects and upsert them into the DB.
+    Used to push locally-scraped rider data to production when PCS
+    blocks requests from cloud server IPs.
+
+    Body: [{"pcs_url": "rider/tadej-pogacar", "name": "Tadej Pogačar",
+            "team": "...", "nationality": "SI",
+            "prev_year_points": 1234, "current_year_points": 567}, ...]
+    """
+    if not _check_secret(request):
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+    riders = request.data if isinstance(request.data, list) else request.data.get("riders", [])
+    if not riders:
+        return Response({"detail": "No rider data provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    created_count = updated_count = 0
+
+    for r in riders:
+        pcs_url = r.get("pcs_url", "").strip()
+        if not pcs_url:
+            continue
+        _, created = Rider.objects.update_or_create(
+            pcs_url=pcs_url,
+            defaults={
+                "name": r.get("name", ""),
+                "team": r.get("team", ""),
+                "nationality": r.get("nationality", ""),
+                "prev_year_points": int(r.get("prev_year_points", 0)),
+                "current_year_points": int(r.get("current_year_points", 0)),
+                "last_synced": now,
+            },
+        )
+        if created:
+            created_count += 1
+        else:
+            updated_count += 1
+
+    return Response({"created": created_count, "updated": updated_count, "total": created_count + updated_count})
