@@ -80,6 +80,7 @@ def push_riders(riders, base_url, secret, batch_size=200):
     print(f"\nDone. Created: {total_created}, Updated: {total_updated}, Total: {total_created + total_updated}")
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", required=True, help="Production backend base URL")
