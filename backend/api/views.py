@@ -1,10 +1,13 @@
 import datetime
 import logging
+import threading
 
 import cloudscraper
+from decouple import config
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.management import call_command
 from django.db.models import ExpressionWrapper, F, FloatField
 from django.shortcuts import get_object_or_404
 from procyclingstats import RiderResults
@@ -443,3 +446,37 @@ def leaderboard(request):
     )
     ranked = sorted(teams, key=lambda t: t.total_score, reverse=True)
     return Response(LeaderboardSerializer(ranked, many=True).data)
+
+
+# ---------------------------------------------------------------------------
+# Admin triggers (protected by SYNC_SECRET env var)
+# ---------------------------------------------------------------------------
+
+_VALID_COMMANDS = {"sync_riders", "sync_results", "sync_photos", "take_snapshot"}
+_sync_lock = threading.Lock()
+
+
+@api_view(["POST", "GET"])
+@permission_classes([AllowAny])
+def admin_sync(request, command):
+    if command not in _VALID_COMMANDS:
+        return Response({"detail": "Unknown command."}, status=status.HTTP_404_NOT_FOUND)
+
+    secret = config("SYNC_SECRET", default="")
+    provided = request.query_params.get("secret") or request.data.get("secret", "")
+    if not secret or provided != secret:
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+    if not _sync_lock.acquire(blocking=False):
+        return Response({"detail": "A sync is already running."}, status=status.HTTP_409_CONFLICT)
+
+    def run():
+        try:
+            call_command(command)
+        except Exception as exc:
+            logger.exception("admin_sync %s failed: %s", command, exc)
+        finally:
+            _sync_lock.release()
+
+    threading.Thread(target=run, daemon=True).start()
+    return Response({"detail": f"{command} started in background."})
