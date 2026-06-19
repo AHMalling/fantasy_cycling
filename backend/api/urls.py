@@ -18,6 +18,7 @@ urlpatterns = [
     path("auth/me/", views.me, name="me"),
     # Admin triggers
     path("admin/sync/<str:command>/", views.admin_sync, name="admin_sync"),
+    path("admin/push-riders/", views.admin_push_riders, name="admin_push_riders"),
     # Resource routers
     path("", include(router.urls)),
 ]
