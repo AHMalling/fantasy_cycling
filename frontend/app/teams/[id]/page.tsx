@@ -39,6 +39,15 @@ export default async function TeamDetailPage({ params }: PageProps) {
 
   const budgetPct = Math.min(100, (team.total_cost / 20_000) * 100);
 
+  // Weekly score delta: diff current score against the most recent snapshot
+  // at least 7 days old, falling back to the oldest snapshot before today.
+  const today = new Date().toISOString().slice(0, 10);
+  const cutoff = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+  const reference =
+    [...snapshots].reverse().find((s) => s.date <= cutoff) ??
+    snapshots.find((s) => s.date < today);
+  const weekDelta = reference ? team.total_score - reference.total_score : null;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       {/* Header */}
@@ -58,12 +67,30 @@ export default async function TeamDetailPage({ params }: PageProps) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4 text-center dark:border-gray-800 dark:bg-gray-900">
           <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
             {team.total_score.toLocaleString()}
           </div>
           <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">Total score</div>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 text-center dark:border-gray-800 dark:bg-gray-900">
+          <div
+            className={`text-2xl font-bold ${
+              weekDelta != null && weekDelta > 0
+                ? "text-green-600 dark:text-green-400"
+                : "text-gray-900 dark:text-white"
+            }`}
+          >
+            {weekDelta == null
+              ? "—"
+              : weekDelta >= 0
+                ? `+${weekDelta.toLocaleString()}`
+                : weekDelta.toLocaleString()}
+          </div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {reference ? `Since ${reference.date}` : "This week"}
+          </div>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 text-center dark:border-gray-800 dark:bg-gray-900">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">

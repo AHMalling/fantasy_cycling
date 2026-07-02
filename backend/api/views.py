@@ -428,12 +428,60 @@ class LeagueViewSet(
             .select_related("user")
         )
         ranked = sorted(teams, key=lambda t: t.total_score, reverse=True)
-        return Response(LeaderboardSerializer(ranked, many=True).data)
+        deltas = _compute_deltas(ranked)
+        return Response(LeaderboardSerializer(ranked, many=True, context={"deltas": deltas}).data)
 
 
 # ---------------------------------------------------------------------------
 # Leaderboard
 # ---------------------------------------------------------------------------
+
+def _compute_deltas(ranked_teams) -> dict:
+    """
+    Per-team score/rank movement vs ~one week ago, for the LeaderboardSerializer
+    context. For each team, the reference point is its most recent snapshot at
+    least 7 days old, falling back to its oldest snapshot before today (so
+    movement shows up even while the snapshot history is younger than a week).
+    Previous ranks are recomputed from snapshot scores *within this team set*,
+    so the arrows stay correct on league leaderboards too. rank_delta is
+    positive when a team moved up.
+    """
+    today = datetime.date.today()
+    cutoff = today - datetime.timedelta(days=7)
+    team_ids = [t.id for t in ranked_teams]
+
+    prev_snaps: dict[int, TeamScoreSnapshot] = {}
+    week_old = TeamScoreSnapshot.objects.filter(
+        team_id__in=team_ids, date__lte=cutoff
+    ).order_by("team_id", "-date")
+    for snap in week_old:
+        prev_snaps.setdefault(snap.team_id, snap)
+
+    missing = [tid for tid in team_ids if tid not in prev_snaps]
+    if missing:
+        oldest = TeamScoreSnapshot.objects.filter(
+            team_id__in=missing, date__lt=today
+        ).order_by("team_id", "date")
+        for snap in oldest:
+            prev_snaps.setdefault(snap.team_id, snap)
+
+    prev_order = sorted(
+        prev_snaps, key=lambda tid: prev_snaps[tid].total_score, reverse=True
+    )
+    prev_rank = {tid: i for i, tid in enumerate(prev_order, 1)}
+
+    deltas = {}
+    for rank, team in enumerate(ranked_teams, 1):
+        snap = prev_snaps.get(team.id)
+        if snap is None:
+            continue
+        deltas[team.id] = {
+            "score_delta": team.total_score - snap.total_score,
+            "rank_delta": prev_rank[team.id] - rank,
+            "delta_since": str(snap.date),
+        }
+    return deltas
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -445,7 +493,8 @@ def leaderboard(request):
         .select_related("user")
     )
     ranked = sorted(teams, key=lambda t: t.total_score, reverse=True)
-    return Response(LeaderboardSerializer(ranked, many=True).data)
+    deltas = _compute_deltas(ranked)
+    return Response(LeaderboardSerializer(ranked, many=True, context={"deltas": deltas}).data)
 
 
 # ---------------------------------------------------------------------------

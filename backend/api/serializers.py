@@ -77,10 +77,18 @@ class LeaderboardSerializer(serializers.ModelSerializer):
     total_score = serializers.SerializerMethodField()
     total_cost = serializers.SerializerMethodField()
     rider_count = serializers.SerializerMethodField()
+    # Week-over-week movement, computed in the view and passed via context
+    # (keyed by team id). Null when a team has no snapshot old enough to diff.
+    score_delta = serializers.SerializerMethodField()
+    rank_delta = serializers.SerializerMethodField()
+    delta_since = serializers.SerializerMethodField()
 
     class Meta:
         model = FantasyTeam
-        fields = ["id", "name", "username", "total_score", "total_cost", "rider_count", "year"]
+        fields = [
+            "id", "name", "username", "total_score", "total_cost", "rider_count",
+            "year", "score_delta", "rank_delta", "delta_since",
+        ]
 
     def get_total_score(self, obj):
         return obj.total_score
@@ -90,6 +98,18 @@ class LeaderboardSerializer(serializers.ModelSerializer):
 
     def get_rider_count(self, obj):
         return obj.rider_count
+
+    def _delta(self, obj, key):
+        return self.context.get("deltas", {}).get(obj.id, {}).get(key)
+
+    def get_score_delta(self, obj):
+        return self._delta(obj, "score_delta")
+
+    def get_rank_delta(self, obj):
+        return self._delta(obj, "rank_delta")
+
+    def get_delta_since(self, obj):
+        return self._delta(obj, "delta_since")
 
 
 class TeamScoreSnapshotSerializer(serializers.ModelSerializer):
