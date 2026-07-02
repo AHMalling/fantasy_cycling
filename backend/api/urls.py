@@ -19,6 +19,7 @@ urlpatterns = [
     # Admin triggers
     path("admin/sync/<str:command>/", views.admin_sync, name="admin_sync"),
     path("admin/push-riders/", views.admin_push_riders, name="admin_push_riders"),
+    path("admin/push-results/", views.admin_push_results, name="admin_push_results"),
     # Resource routers
     path("", include(router.urls)),
 ]
