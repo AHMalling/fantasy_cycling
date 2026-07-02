@@ -529,3 +529,73 @@ def admin_push_riders(request):
             updated_count += 1
 
     return Response({"created": created_count, "updated": updated_count, "total": created_count + updated_count})
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def admin_push_results(request):
+    """
+    Accept a JSON array of race result objects and upsert them into the DB.
+    Used to push locally-scraped results to production when PCS blocks cloud IPs.
+
+    Body: [{"rider_pcs_url": "rider/tadej-pogacar", "date": "2026-05-15",
+            "race_name": "Giro d'Italia | Stage 15", "race_url": "race/...",
+            "uci_points": 100, "rank": 1, "category": "2.UWT", "year": 2026}, ...]
+    """
+    if not _check_secret(request):
+        return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+    results = request.data if isinstance(request.data, list) else request.data.get("results", [])
+    if not results:
+        return Response({"detail": "No result data provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    created_count = updated_count = skipped = 0
+    rider_cache: dict[str, Rider] = {}
+
+    for r in results:
+        pcs_url = r.get("rider_pcs_url", "").strip()
+        if not pcs_url:
+            skipped += 1
+            continue
+        if pcs_url not in rider_cache:
+            try:
+                rider_cache[pcs_url] = Rider.objects.get(pcs_url=pcs_url)
+            except Rider.DoesNotExist:
+                skipped += 1
+                continue
+        rider = rider_cache[pcs_url]
+
+        date_str = r.get("date", "")
+        race_name = r.get("race_name", "").strip()
+        if not date_str or not race_name:
+            skipped += 1
+            continue
+        try:
+            result_date = datetime.date.fromisoformat(date_str)
+        except ValueError:
+            skipped += 1
+            continue
+
+        _, created = RaceResult.objects.update_or_create(
+            rider=rider,
+            date=result_date,
+            race_name=race_name,
+            defaults={
+                "race_url": r.get("race_url", "").strip(),
+                "uci_points": int(r.get("uci_points", 0)),
+                "rank": r.get("rank"),
+                "category": r.get("category", "").strip(),
+                "year": int(r.get("year", datetime.date.today().year)),
+            },
+        )
+        if created:
+            created_count += 1
+        else:
+            updated_count += 1
+
+    return Response({
+        "created": created_count,
+        "updated": updated_count,
+        "skipped": skipped,
+        "total": created_count + updated_count,
+    })
