@@ -1,0 +1,46 @@
+name: Data sync
+
+on:
+  schedule:
+    - cron: "0 * * * *"    # every hour  → sync_results
+    - cron: "50 23 * * *"  # 23:50 UTC daily → take_snapshot
+    - cron: "0 4 * * 0"    # Sunday 04:00 UTC → sync_riders + sync_photos
+  workflow_dispatch:        # allow manual run from the GitHub Actions UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      # Render free tier sleeps after 15 min of inactivity.
+      # --max-time 90 gives it time to wake up before the real sync calls.
+      - name: Wake up Render backend
+        run: |
+          curl --silent --max-time 90 \
+            "${{ secrets.BACKEND_URL }}/api/health/" || true
+
+      - name: sync_results (every hour)
+        run: |
+          curl --fail --silent --show-error --max-time 30 --retry 2 \
+            --request POST \
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_results?secret=${{ secrets.SYNC_SECRET }}"
+
+      - name: take_snapshot (daily at 23:50 UTC)
+        if: github.event.schedule == '50 23 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl --fail --silent --show-error --max-time 30 --retry 2 \
+            --request POST \
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/take_snapshot?secret=${{ secrets.SYNC_SECRET }}"
+
+      - name: sync_riders (weekly, Sunday)
+        if: github.event.schedule == '0 4 * * 0' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl --fail --silent --show-error --max-time 60 --retry 2 \
+            --request POST \
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_riders?secret=${{ secrets.SYNC_SECRET }}"
+
+      - name: sync_photos (weekly, Sunday)
+        if: github.event.schedule == '0 4 * * 0' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl --fail --silent --show-error --max-time 60 --retry 2 \
+            --request POST \
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_photos?secret=${{ secrets.SYNC_SECRET }}"
