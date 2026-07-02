@@ -22,25 +22,25 @@ jobs:
         run: |
           curl --fail --silent --show-error --max-time 30 --retry 2 \
             --request POST \
-            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_results?secret=${{ secrets.SYNC_SECRET }}"
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_results/?secret=${{ secrets.SYNC_SECRET }}"
 
       - name: take_snapshot (daily at 23:50 UTC)
         if: github.event.schedule == '50 23 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl --fail --silent --show-error --max-time 30 --retry 2 \
             --request POST \
-            "${{ secrets.BACKEND_URL }}/api/admin/sync/take_snapshot?secret=${{ secrets.SYNC_SECRET }}"
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/take_snapshot/?secret=${{ secrets.SYNC_SECRET }}"
 
       - name: sync_riders (weekly, Sunday)
         if: github.event.schedule == '0 4 * * 0' || github.event_name == 'workflow_dispatch'
         run: |
           curl --fail --silent --show-error --max-time 60 --retry 2 \
             --request POST \
-            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_riders?secret=${{ secrets.SYNC_SECRET }}"
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_riders/?secret=${{ secrets.SYNC_SECRET }}"
 
       - name: sync_photos (weekly, Sunday)
         if: github.event.schedule == '0 4 * * 0' || github.event_name == 'workflow_dispatch'
         run: |
           curl --fail --silent --show-error --max-time 60 --retry 2 \
             --request POST \
-            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_photos?secret=${{ secrets.SYNC_SECRET }}"
+            "${{ secrets.BACKEND_URL }}/api/admin/sync/sync_photos/?secret=${{ secrets.SYNC_SECRET }}"
