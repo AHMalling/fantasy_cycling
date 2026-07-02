@@ -15,6 +15,40 @@ function RankBadge({ i }: { i: number }) {
   return <span className="font-bold text-gray-400">{i + 1}</span>;
 }
 
+function RankMovement({ delta }: { delta: number | null }) {
+  if (delta == null) return null;
+  if (delta > 0)
+    return (
+      <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+        ▲{delta}
+      </span>
+    );
+  if (delta < 0)
+    return (
+      <span className="text-xs font-semibold text-red-600 dark:text-red-400">
+        ▼{-delta}
+      </span>
+    );
+  return <span className="text-xs text-gray-300 dark:text-gray-600">–</span>;
+}
+
+function ScoreDelta({ delta }: { delta: number | null }) {
+  if (delta == null || delta === 0) return null;
+  const positive = delta > 0;
+  return (
+    <div
+      className={`text-xs font-medium ${
+        positive
+          ? "text-green-600 dark:text-green-400"
+          : "text-red-600 dark:text-red-400"
+      }`}
+    >
+      {positive ? "+" : ""}
+      {delta.toLocaleString()} this week
+    </div>
+  );
+}
+
 function TeamExpansion({ team }: { team: FantasyTeam }) {
   const sorted = [...team.riders].sort(
     (a, b) => b.current_year_points - a.current_year_points
@@ -152,7 +186,10 @@ export default function LeaderboardTable({ entries }: Props) {
                   } hover:bg-gray-50 dark:hover:bg-gray-800`}
                 >
                   <td className="px-4 py-3">
-                    <RankBadge i={i} />
+                    <span className="flex items-center gap-1.5">
+                      <RankBadge i={i} />
+                      <RankMovement delta={entry.rank_delta} />
+                    </span>
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
                     <span className="flex items-center gap-2">
@@ -169,8 +206,11 @@ export default function LeaderboardTable({ entries }: Props) {
                   <td className="hidden px-4 py-3 text-right text-gray-600 dark:text-gray-400 sm:table-cell">
                     {entry.rider_count} / 20
                   </td>
-                  <td className="px-4 py-3 text-right text-lg font-bold text-yellow-600 dark:text-yellow-400">
-                    {entry.total_score.toLocaleString()}
+                  <td className="px-4 py-3 text-right">
+                    <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
+                      {entry.total_score.toLocaleString()}
+                    </div>
+                    <ScoreDelta delta={entry.score_delta} />
                   </td>
                 </tr>
                 {isExpanded && team && <TeamExpansion key={`${entry.id}-detail`} team={team} />}

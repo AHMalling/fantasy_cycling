@@ -38,6 +38,9 @@ export interface LeaderboardEntry {
   total_cost: number;
   rider_count: number;
   year: number;
+  score_delta: number | null;
+  rank_delta: number | null;
+  delta_since: string | null;
 }
 
 export interface PaginatedResponse<T> {
