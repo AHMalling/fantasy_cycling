@@ -1,6 +1,6 @@
 # Fantasy Cycling
 
-A full-stack fantasy cycling application built with **Django REST Framework** (backend) and **Next.js 15** (frontend).
+A full-stack fantasy cycling application built with **Django REST Framework** (backend) and **Next.js** (frontend).
 
 ---
 
